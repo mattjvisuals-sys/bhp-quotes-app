@@ -177,6 +177,7 @@ function printQuote(){
 (async function(){
   var params=new URLSearchParams(window.location.search);
   var id=params.get("id");
+  if(!id){var m=window.location.pathname.match(/\/q\/([A-Za-z0-9]+)/);if(m)id=m[1];}
   if(!id){
     document.getElementById("loading").style.display="none";
     document.getElementById("notFound").style.display="block";
