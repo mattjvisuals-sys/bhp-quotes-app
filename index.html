@@ -749,7 +749,9 @@ function hideAll(){
 }
 function showForm(){
   hideAll();
-  document.getElementById("formView").classList.remove("hidden");
+  var fv=document.getElementById("formView");
+  fv.classList.remove("hidden");
+  fv.style.display="";
   document.body.style.background="#060606";
   window.scrollTo(0,0);
 }
