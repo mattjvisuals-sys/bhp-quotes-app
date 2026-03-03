@@ -747,8 +747,10 @@ function printQuote(){
 
 // --- Auth ---
 async function initAuth(){
-  var{data:{session}}=await sb.auth.getSession();
-  if(session){showDashboard();}else{showLogin();}
+  try{
+    var{data:{session}}=await sb.auth.getSession();
+    if(session){showDashboard();}else{showLogin();}
+  }catch(e){console.error("Auth init error:",e);showLogin();}
 }
 function showLogin(){
   hideAll();
@@ -759,11 +761,14 @@ async function doLogin(){
   var btn=document.getElementById("loginBtn");
   var errEl=document.getElementById("loginError");
   btn.disabled=true;btn.textContent="SIGNING IN...";errEl.textContent="";
-  var email=document.getElementById("loginEmail").value;
+  var email=document.getElementById("loginEmail").value.trim();
   var pw=document.getElementById("loginPassword").value;
-  var{error}=await sb.auth.signInWithPassword({email:email,password:pw});
-  if(error){errEl.textContent=error.message;btn.disabled=false;btn.textContent="SIGN IN";}
-  else{btn.textContent="SIGN IN";btn.disabled=false;showDashboard();}
+  if(!email||!pw){errEl.textContent="Enter email and password";btn.disabled=false;btn.textContent="SIGN IN";return;}
+  try{
+    var res=await sb.auth.signInWithPassword({email:email,password:pw});
+    if(res.error){errEl.textContent=res.error.message;btn.disabled=false;btn.textContent="SIGN IN";}
+    else{btn.textContent="SIGN IN";btn.disabled=false;showDashboard();}
+  }catch(e){errEl.textContent="Connection error: "+e.message;btn.disabled=false;btn.textContent="SIGN IN";}
 }
 async function doLogout(){
   await sb.auth.signOut();
