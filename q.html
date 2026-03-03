@@ -183,7 +183,7 @@ function printQuote(){
     document.getElementById("notFound").style.display="block";
     return;
   }
-  var sb=supabase.createClient("https://rfadnkcqpewjydqhdphg.supabase.co","sb_publishable_nvm5UuOPw1zh5rvUXQWGwQ_9AJQ2A9y");
+  var sb=supabase.createClient("https://rsfadnkcqewpjydhptkg.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzZmFkbmtjcWV3cGp5ZGhwdGtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzQ4ODYsImV4cCI6MjA4ODE1MDg4Nn0.n0nknC5AIirQeEn2epqh878D3wwS8UTX8e1RjTtOydg");
   var {data,error}=await sb.from("quotes").select("*").eq("id",id).single();
   if(error||!data){
     document.getElementById("loading").style.display="none";
