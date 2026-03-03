@@ -61,6 +61,19 @@ body{font-family:'DM Sans','Helvetica Neue',sans-serif;background:#060606;color:
 .quote-bar{flex-direction:column;gap:8px;padding:10px 14px}
 .quote-bar button{width:100%}
 }
+.pay-section{background:#fff;border-radius:3px;box-shadow:0 2px 24px rgba(0,0,0,.07);padding:32px 44px;text-align:center}
+.pay-section h3{font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:700;color:#1a1a1a;margin:0 0 6px}
+.pay-section p{font-size:13px;color:#777;margin:0 0 20px}
+.pay-buttons{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.pay-btn{padding:14px 32px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .2s}
+.pay-btn:disabled{opacity:.5;cursor:not-allowed}
+.pay-btn.deposit{background:#d4a438;color:#0a0a0a}
+.pay-btn.balance{background:#1a1a1a;color:#eae6dd}
+.pay-btn:hover:not(:disabled){opacity:.85}
+.pay-msg{margin-top:16px;font-size:13px;padding:10px 16px;border-radius:6px;display:none}
+.pay-msg.success{display:block;background:rgba(46,204,113,.12);color:#27ae60}
+.pay-msg.cancelled{display:block;background:rgba(212,164,56,.12);color:#b8942e}
+@media(max-width:600px){.pay-section{padding:24px 20px}.pay-buttons{flex-direction:column}.pay-btn{width:100%}}
 </style>
 </head>
 <body class="quote-bg">
@@ -174,6 +187,29 @@ function printQuote(){
   setTimeout(function(){w.print()},600);
 }
 
+async function handlePay(type){
+  var btn=document.getElementById(type==='deposit'?'payDepositBtn':'payBalanceBtn');
+  btn.disabled=true;btn.textContent='Redirecting to Stripe...';
+  try{
+    var id=new URLSearchParams(window.location.search).get('id');
+    if(!id){var m=window.location.pathname.match(/\/q\/([A-Za-z0-9]+)/);if(m)id=m[1];}
+    var r=await fetch('/api/checkout',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({quoteId:id,paymentType:type})
+    });
+    var data=await r.json();
+    if(data.url){window.location.href=data.url;}
+    else{throw new Error(data.error||'Failed to create checkout');}
+  }catch(e){
+    btn.disabled=false;
+    btn.textContent=type==='deposit'?'Pay Deposit':'Pay Balance';
+    var msg=document.getElementById('payMsg');
+    msg.className='pay-msg cancelled';
+    msg.textContent=e.message||'Something went wrong. Please try again.';
+  }
+}
+
 (async function(){
   var params=new URLSearchParams(window.location.search);
   var id=params.get("id");
@@ -194,6 +230,40 @@ function printQuote(){
     return;
   }
   renderQuote(data);
+
+  // Payment section
+  if(data.status!=='paid'){
+    var d=data.quote_data;
+    var fi=data.fee_included!==false;
+    var sf=fi&&d.svcFee>0;
+    var total=sf?d.total:d.total-d.svcFee;
+    var dep=d.deposit;
+    var bal=total-dep;
+    var ps=document.getElementById("paySection");
+    var btns='';
+    if(data.status!=='deposit_paid'){
+      btns+='<button class="pay-btn deposit" onclick="handlePay(\'deposit\')" id="payDepositBtn">Pay Deposit \u2014 '+fmt(dep)+'</button>';
+    }
+    btns+='<button class="pay-btn balance" onclick="handlePay(\'balance\')" id="payBalanceBtn">Pay Balance \u2014 '+fmt(bal)+'</button>';
+    ps.innerHTML='<div class="pay-section"><h3>Make a Payment</h3><p>Secure payment powered by Stripe</p><div class="pay-buttons">'+btns+'</div><div id="payMsg" class="pay-msg"></div></div>';
+    ps.style.display='block';
+
+    // Check for payment return
+    var sp=new URLSearchParams(window.location.search);
+    if(sp.get('payment')==='success'){
+      var msgEl=document.getElementById('payMsg');
+      msgEl.className='pay-msg success';
+      var pt=sp.get('type');
+      msgEl.textContent=pt==='deposit'?'Deposit payment received! Thank you.':'Payment received in full! Thank you.';
+      if(pt==='deposit'&&document.getElementById('payDepositBtn'))document.getElementById('payDepositBtn').style.display='none';
+      if(pt==='balance')document.getElementById('payBalanceBtn').style.display='none';
+    }else if(sp.get('payment')==='cancelled'){
+      var msgEl2=document.getElementById('payMsg');
+      msgEl2.className='pay-msg cancelled';
+      msgEl2.textContent='Payment was cancelled. You can try again when ready.';
+    }
+  }
+
   document.getElementById("loading").style.display="none";
   document.getElementById("quoteContent").style.display="block";
 })();
