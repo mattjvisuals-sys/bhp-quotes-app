@@ -164,6 +164,7 @@ textarea{width:100%;background:var(--surface);border:1px solid #333;border-radiu
   <div class="login-card">
     <h1>BENNY HANSON</h1>
     <p class="sub">PRODUCTIONS</p>
+    <p style="font-size:9px;color:#555;margin-top:4px">v3-nofetch</p>
     <div class="field"><label>EMAIL</label><input type="email" id="loginEmail" placeholder="you@email.com"></div>
     <div class="field"><label>PASSWORD</label><input type="password" id="loginPassword" placeholder="Password"></div>
     <button class="login-btn" id="loginBtn" onclick="doLogin()">SIGN IN</button>
@@ -799,15 +800,19 @@ async function doLogin(){
   var email=document.getElementById("loginEmail").value.trim();
   var pw=document.getElementById("loginPassword").value;
   if(!email||!pw){errEl.textContent="Enter email and password";btn.disabled=false;btn.textContent="SIGN IN";return;}
+  errEl.textContent="[debug] Connecting...";
   try{
-    var r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
+    var url=SUPABASE_URL+'/auth/v1/token?grant_type=password';
+    errEl.textContent="[debug] Fetching...";
+    var r=await fetch(url,{
       method:'POST',
       headers:{'apikey':SUPABASE_ANON,'Content-Type':'application/json'},
       body:JSON.stringify({email:email,password:pw})
     });
+    errEl.textContent="[debug] Status: "+r.status;
     var data=await r.json();
     if(!r.ok||data.error){
-      errEl.textContent=data.error_description||data.msg||data.error||'Login failed';
+      errEl.textContent=data.error_description||data.msg||data.error||'Login failed ('+r.status+')';
       btn.disabled=false;btn.textContent="SIGN IN";
     }else{
       _accessToken=data.access_token;
@@ -815,7 +820,7 @@ async function doLogin(){
       btn.textContent="SIGN IN";btn.disabled=false;
       showDashboard();
     }
-  }catch(e){errEl.textContent="Connection error: "+e.message;btn.disabled=false;btn.textContent="SIGN IN";}
+  }catch(e){errEl.textContent="[debug] Error: "+e.message;btn.disabled=false;btn.textContent="SIGN IN";}
 }
 async function doLogout(){
   try{await fetch(SUPABASE_URL+'/auth/v1/logout',{method:'POST',headers:{'apikey':SUPABASE_ANON,'Authorization':'Bearer '+_accessToken}});}catch(e){}
