@@ -124,6 +124,8 @@ input[type=number]::-webkit-inner-spin-button{opacity:1}
 .dash-empty p{margin-bottom:20px;font-size:14px}
 .share-btn{padding:5px 12px;background:transparent;border:1px solid #333;border-radius:6px;color:var(--dim);font-size:11px;cursor:pointer;font-family:inherit}
 .share-btn:hover{border-color:var(--gold-dim);color:var(--text)}
+.del-btn{padding:5px 12px;background:transparent;border:1px solid #333;border-radius:6px;color:#666;font-size:11px;cursor:pointer;font-family:inherit}
+.del-btn:hover{border-color:#c0392b;color:#e74c3c}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1708;border:1px solid var(--gold-dim);color:var(--gold);padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;z-index:100;opacity:0;transition:opacity .3s}
 .toast.show{opacity:1}
 .save-btn{padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;background:var(--gold);color:#0a0a0a;border:none;font-weight:600;font-family:inherit}
@@ -849,7 +851,7 @@ async function showDashboard(){
     h+='<td class="amt">'+fmt(q.total_amount)+'</td>';
     h+='<td><span class="status-badge '+q.status+'">'+q.status+'</span></td>';
     h+='<td style="color:var(--dim)">'+dt+'</td>';
-    h+='<td><button class="share-btn" onclick="event.stopPropagation();copyShareLink(\''+q.id+'\')">Share</button></td>';
+    h+='<td><button class="share-btn" onclick="event.stopPropagation();copyShareLink(\''+q.id+'\')">Share</button> <button class="del-btn" onclick="event.stopPropagation();deleteQuote(\''+q.id+'\')">Delete</button></td>';
     h+='</tr>';
   }
   h+='</tbody></table>';
@@ -945,6 +947,14 @@ function copyShareLink(id){
   navigator.clipboard.writeText(url).then(function(){showToast("Link copied!");}).catch(function(){
     prompt("Copy this link:",url);
   });
+}
+
+// --- Delete ---
+async function deleteQuote(id){
+  if(!confirm("Delete this quote? This cannot be undone."))return;
+  var ok=await sbDelete("quotes",id);
+  if(ok){showToast("Quote deleted");showDashboard();}
+  else{showToast("Delete failed");}
 }
 
 // --- Toast ---
