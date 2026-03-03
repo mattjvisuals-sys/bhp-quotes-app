@@ -92,7 +92,7 @@ input[type=number]::-webkit-inner-spin-button{opacity:1}
 .q-notes .qn-text{font-size:12px;color:#666;line-height:1.6;white-space:pre-wrap}
 .q-footer{background:var(--bg);padding:20px 44px;display:flex;justify-content:space-between;align-items:center}
 .q-footer .qf-valid{font-size:11px;color:#555}
-.hidden{display:none}
+.hidden{display:none!important}
 .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
 .login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 36px;width:100%;max-width:380px;text-align:center}
 .login-card h1{font-family:'Playfair Display',Georgia,serif;font-size:28px;color:#fff;margin-bottom:4px}
@@ -164,7 +164,6 @@ textarea{width:100%;background:var(--surface);border:1px solid #333;border-radiu
   <div class="login-card">
     <h1>BENNY HANSON</h1>
     <p class="sub">PRODUCTIONS</p>
-    <p style="font-size:9px;color:#555;margin-top:4px">v3-nofetch</p>
     <div class="field"><label>EMAIL</label><input type="email" id="loginEmail" placeholder="you@email.com"></div>
     <div class="field"><label>PASSWORD</label><input type="password" id="loginPassword" placeholder="Password"></div>
     <button class="login-btn" id="loginBtn" onclick="doLogin()">SIGN IN</button>
@@ -800,19 +799,15 @@ async function doLogin(){
   var email=document.getElementById("loginEmail").value.trim();
   var pw=document.getElementById("loginPassword").value;
   if(!email||!pw){errEl.textContent="Enter email and password";btn.disabled=false;btn.textContent="SIGN IN";return;}
-  errEl.textContent="[debug] Connecting...";
   try{
-    var url=SUPABASE_URL+'/auth/v1/token?grant_type=password';
-    errEl.textContent="[debug] Fetching...";
-    var r=await fetch(url,{
+    var r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
       method:'POST',
       headers:{'apikey':SUPABASE_ANON,'Content-Type':'application/json'},
       body:JSON.stringify({email:email,password:pw})
     });
-    errEl.textContent="[debug] Status: "+r.status;
     var data=await r.json();
     if(!r.ok||data.error){
-      errEl.textContent=data.error_description||data.msg||data.error||'Login failed ('+r.status+')';
+      errEl.textContent=data.error_description||data.msg||data.error||'Login failed';
       btn.disabled=false;btn.textContent="SIGN IN";
     }else{
       _accessToken=data.access_token;
@@ -820,7 +815,7 @@ async function doLogin(){
       btn.textContent="SIGN IN";btn.disabled=false;
       showDashboard();
     }
-  }catch(e){errEl.textContent="[debug] Error: "+e.message;btn.disabled=false;btn.textContent="SIGN IN";}
+  }catch(e){errEl.textContent="Connection error: "+e.message;btn.disabled=false;btn.textContent="SIGN IN";}
 }
 async function doLogout(){
   try{await fetch(SUPABASE_URL+'/auth/v1/logout',{method:'POST',headers:{'apikey':SUPABASE_ANON,'Authorization':'Bearer '+_accessToken}});}catch(e){}
@@ -835,11 +830,9 @@ async function showDashboard(){
   document.getElementById("dashView").classList.remove("hidden");
   document.body.style.background="#060606";
   window.scrollTo(0,0);
-  document.getElementById("dashContent").innerHTML='<p style="color:var(--gold);text-align:center;padding:40px;font-size:18px">LOGIN SUCCESSFUL! Loading quotes...</p>';
-  try{
+  document.getElementById("dashContent").innerHTML='<p style="color:var(--dim);text-align:center;padding:40px">Loading quotes...</p>';
   var data=await sbSelect("quotes","select=id,quote_number,quote_date,client_name,project_name,total_amount,status,created_at&order=created_at.desc");
-  }catch(e){document.getElementById("dashContent").innerHTML='<p style="color:#e74c3c;text-align:center;padding:40px">Fetch error: '+e.message+'</p>';return;}
-  if(data.error||data.message){document.getElementById("dashContent").innerHTML='<p style="color:#e74c3c;text-align:center;padding:40px">DB error: '+(data.message||data.error||JSON.stringify(data))+'</p>';return;}
+  if(data.error||data.message){document.getElementById("dashContent").innerHTML='<p style="color:#e74c3c">Error loading quotes: '+(data.message||data.error)+'</p>';return;}
   if(!data||data.length===0){
     document.getElementById("dashContent").innerHTML='<div class="dash-empty"><p>No quotes yet.</p><button class="dash-btn" onclick="newQuote()">Create Your First Quote</button></div>';return;
   }
