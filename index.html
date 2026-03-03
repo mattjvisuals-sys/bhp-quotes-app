@@ -744,12 +744,12 @@ function showQuote(){
 function hideAll(){
   document.getElementById("loginView").classList.add("hidden");
   document.getElementById("dashView").classList.add("hidden");
-  document.getElementById("formView").style.display="none";
+  document.getElementById("formView").classList.add("hidden");
   document.getElementById("quoteView").classList.add("hidden");
 }
 function showForm(){
   hideAll();
-  document.getElementById("formView").style.display="block";
+  document.getElementById("formView").classList.remove("hidden");
   document.body.style.background="#060606";
   window.scrollTo(0,0);
 }
