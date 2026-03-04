@@ -232,7 +232,11 @@ async function handlePay(type){
   renderQuote(data);
 
   // Payment section
-  if(data.status!=='paid'){
+  if(data.status==='paid'){
+    var ps=document.getElementById("paySection");
+    ps.innerHTML='<div class="pay-section"><div class="pay-msg success" style="display:block;font-size:15px;padding:16px 20px">This quote has been paid in full. Thank you!</div></div>';
+    ps.style.display='block';
+  }else if(data.status!=='paid'){
     var d=data.quote_data;
     var fi=data.fee_included!==false;
     var sf=fi&&d.svcFee>0;
@@ -241,11 +245,15 @@ async function handlePay(type){
     var bal=total-dep;
     var ps=document.getElementById("paySection");
     var btns='';
+    var statusMsg='';
+    if(data.status==='deposit_paid'){
+      statusMsg='<div class="pay-msg success" style="display:block;margin-bottom:16px">Deposit of '+fmt(dep)+' received. Thank you!</div>';
+    }
     if(data.status!=='deposit_paid'){
       btns+='<button class="pay-btn deposit" onclick="handlePay(\'deposit\')" id="payDepositBtn">Pay Deposit \u2014 '+fmt(dep)+'</button>';
     }
     btns+='<button class="pay-btn balance" onclick="handlePay(\'balance\')" id="payBalanceBtn">Pay Balance \u2014 '+fmt(bal)+'</button>';
-    ps.innerHTML='<div class="pay-section"><h3>Make a Payment</h3><p>Secure payment powered by Stripe</p><div class="pay-buttons">'+btns+'</div><div id="payMsg" class="pay-msg"></div></div>';
+    ps.innerHTML='<div class="pay-section"><h3>Make a Payment</h3><p>Secure payment powered by Stripe</p>'+statusMsg+'<div class="pay-buttons">'+btns+'</div><div id="payMsg" class="pay-msg"></div></div>';
     ps.style.display='block';
 
     // Check for payment return

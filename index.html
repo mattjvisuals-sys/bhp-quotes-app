@@ -943,12 +943,18 @@ async function loadQuote(id){
 }
 
 // --- Share ---
-function copyShareLink(id){
+async function copyShareLink(id){
   var qid=id||currentQuoteId;
   if(!qid){showToast("Save the quote first");return;}
   var url=window.location.origin+"/q/"+qid;
   navigator.clipboard.writeText(url).then(function(){showToast("Link copied!");}).catch(function(){
     prompt("Copy this link:",url);
+  });
+  // Auto-update status to "sent" if still draft
+  sbSelect("quotes","select=status&id=eq."+qid).then(function(rows){
+    if(Array.isArray(rows)&&rows[0]&&rows[0].status==='draft'){
+      sbUpdate("quotes",qid,{status:"sent",updated_at:new Date().toISOString()});
+    }
   });
 }
 
