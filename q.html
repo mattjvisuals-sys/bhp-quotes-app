@@ -265,6 +265,8 @@ async function handlePay(type){
       msgEl.textContent=pt==='deposit'?'Deposit payment received! Thank you.':'Payment received in full! Thank you.';
       if(pt==='deposit'&&document.getElementById('payDepositBtn'))document.getElementById('payDepositBtn').style.display='none';
       if(pt==='balance')document.getElementById('payBalanceBtn').style.display='none';
+      // Update status in database
+      fetch('/api/payment-success',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({quoteId:id,paymentType:pt})});
     }else if(sp.get('payment')==='cancelled'){
       var msgEl2=document.getElementById('payMsg');
       msgEl2.className='pay-msg cancelled';
