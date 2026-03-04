@@ -323,7 +323,7 @@ function initPayPalButtons(quoteId,types){
     fetch('/api/paypal-client-id').then(function(r){return r.json();}).then(function(cfg){
       if(!cfg.clientId)return;
       var ppScript=document.createElement('script');
-      ppScript.src='https://www.paypal.com/sdk/js?client-id='+encodeURIComponent(cfg.clientId)+'&currency=USD&disable-funding=paylater,credit';
+      ppScript.src='https://www.paypal.com/sdk/js?client-id='+encodeURIComponent(cfg.clientId)+'&currency=USD&disable-funding=paylater,credit,card';
       ppScript.onload=function(){initPayPalButtons(id,ppTypes);};
       document.head.appendChild(ppScript);
     }).catch(function(){});
