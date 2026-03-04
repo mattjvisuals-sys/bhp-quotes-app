@@ -11,6 +11,27 @@ async function buffer(readable) {
   return Buffer.concat(chunks);
 }
 
+function updateQuoteStatus(quoteId, status) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+  return fetch(
+    `${supabaseUrl}/rest/v1/quotes?id=eq.${encodeURIComponent(quoteId)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({
+        status: status,
+        updated_at: new Date().toISOString(),
+      }),
+    }
+  );
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -28,32 +49,29 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid signature' });
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    const quoteId = session.metadata?.quoteId;
-    const paymentType = session.metadata?.paymentType;
+  const session = event.data.object;
+  const quoteId = session.metadata?.quoteId;
+  const paymentType = session.metadata?.paymentType;
 
-    if (quoteId) {
+  if (quoteId) {
+    if (event.type === 'checkout.session.completed') {
+      if (session.payment_status === 'paid') {
+        // Immediate payment (card) — mark as paid
+        const newStatus = paymentType === 'balance' ? 'paid' : 'deposit_paid';
+        await updateQuoteStatus(quoteId, newStatus);
+      } else if (session.payment_status === 'unpaid') {
+        // Delayed payment (ACH) — mark as processing
+        const newStatus = paymentType === 'balance' ? 'ach_balance_processing' : 'ach_deposit_processing';
+        await updateQuoteStatus(quoteId, newStatus);
+      }
+    } else if (event.type === 'checkout.session.async_payment_succeeded') {
+      // ACH payment cleared
       const newStatus = paymentType === 'balance' ? 'paid' : 'deposit_paid';
-      const supabaseUrl = process.env.SUPABASE_URL;
-      const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-      await fetch(
-        `${supabaseUrl}/rest/v1/quotes?id=eq.${encodeURIComponent(quoteId)}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=minimal',
-          },
-          body: JSON.stringify({
-            status: newStatus,
-            updated_at: new Date().toISOString(),
-          }),
-        }
-      );
+      await updateQuoteStatus(quoteId, newStatus);
+    } else if (event.type === 'checkout.session.async_payment_failed') {
+      // ACH payment failed — revert to previous status
+      const newStatus = paymentType === 'balance' ? 'deposit_paid' : 'sent';
+      await updateQuoteStatus(quoteId, newStatus);
     }
   }
 
