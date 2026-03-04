@@ -870,12 +870,12 @@ async function showDashboard(){
   document.getElementById("dashContent").classList.remove("hidden");
   document.getElementById("revenueContent").classList.add("hidden");
   document.getElementById("dashContent").innerHTML='<p style="color:var(--dim);text-align:center;padding:40px">Loading quotes...</p>';
-  var data=await sbSelect("quotes","select=id,quote_number,quote_date,client_name,project_name,total_amount,status,created_at&order=created_at.desc");
+  var data=await sbSelect("quotes","select=id,quote_number,quote_date,client_name,project_name,total_amount,status,created_at,created_by&order=created_at.desc");
   if(data.error||data.message){document.getElementById("dashContent").innerHTML='<p style="color:#e74c3c">Error loading quotes: '+(data.message||data.error)+'</p>';return;}
   if(!data||data.length===0){
     document.getElementById("dashContent").innerHTML='<div class="dash-empty"><p>No quotes yet.</p><button class="dash-btn" onclick="newQuote()">Create Your First Quote</button></div>';return;
   }
-  var h='<table class="dash-table"><thead><tr><th>QUOTE #</th><th>CLIENT</th><th>PROJECT</th><th class="amt">TOTAL</th><th>STATUS</th><th>DATE</th><th></th></tr></thead><tbody>';
+  var h='<table class="dash-table"><thead><tr><th>QUOTE #</th><th>CLIENT</th><th>PROJECT</th><th class="amt">TOTAL</th><th>STATUS</th><th>CREATED BY</th><th>DATE</th><th></th></tr></thead><tbody>';
   for(var i=0;i<data.length;i++){
     var q=data[i];
     var dt="";try{dt=new Date(q.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}catch(e){dt=q.quote_date;}
@@ -886,6 +886,8 @@ async function showDashboard(){
     h+='<td class="amt">'+fmt(q.total_amount)+'</td>';
     var statusLabel=statusText(q.status);
     h+='<td><span class="status-badge '+q.status+'">'+statusLabel+'</span></td>';
+    var cb=q.created_by||'';var cbShort=cb.split('@')[0]||cb;
+    h+='<td style="color:var(--dim);font-size:11px" title="'+esc(cb)+'">'+esc(cbShort)+'</td>';
     h+='<td style="color:var(--dim)">'+dt+'</td>';
     h+='<td><button class="share-btn" onclick="event.stopPropagation();copyShareLink(\''+q.id+'\')">Share</button> <button class="del-btn" onclick="event.stopPropagation();deleteQuote(\''+q.id+'\')">Delete</button></td>';
     h+='</tr>';
@@ -1074,8 +1076,10 @@ async function saveQuote(){
   // get user id from saved session
   var sess=localStorage.getItem('sb_session');
   if(!sess||!_accessToken){btn.disabled=false;btn.textContent="Save Quote";showLogin();return;}
-  var userId=JSON.parse(sess).user.id;
-  var row={quote_number:fs.inputs.quoteNumber||"",quote_date:fs.inputs.quoteDate||new Date().toISOString().split("T")[0],client_name:fs.inputs.clientName||"",project_name:fs.inputs.projectName||"",shoot_location:fs.inputs.shootLocation||"",form_state:fs,quote_data:qd,total_amount:qd.total,fee_included:true,user_id:userId};
+  var sessObj=JSON.parse(sess);
+  var userId=sessObj.user.id;
+  var userEmail=sessObj.user.email||'';
+  var row={quote_number:fs.inputs.quoteNumber||"",quote_date:fs.inputs.quoteDate||new Date().toISOString().split("T")[0],client_name:fs.inputs.clientName||"",project_name:fs.inputs.projectName||"",shoot_location:fs.inputs.shootLocation||"",form_state:fs,quote_data:qd,total_amount:qd.total,fee_included:true,user_id:userId,created_by:userEmail};
   var result;
   if(currentQuoteId){
     row.updated_at=new Date().toISOString();
