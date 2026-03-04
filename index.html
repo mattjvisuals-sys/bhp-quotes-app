@@ -123,6 +123,28 @@ input[type=number]::-webkit-inner-spin-button{opacity:1}
 .status-badge.paid{background:rgba(39,174,96,0.2);color:#27ae60}
 .dash-empty{text-align:center;padding:60px 24px;color:var(--dim)}
 .dash-empty p{margin-bottom:20px;font-size:14px}
+.dash-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 32px;background:var(--bg)}
+.dash-tab{padding:12px 24px;background:none;border:none;border-bottom:2px solid transparent;color:var(--dim);font-size:13px;font-weight:600;letter-spacing:1px;cursor:pointer;font-family:inherit;transition:all .15s}
+.dash-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.dash-tab:hover:not(.active){color:var(--text)}
+.rev-filter{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.rev-filter select{background:#111;border:1px solid #333;border-radius:6px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;cursor:pointer}
+.rev-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
+.rev-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px}
+.rev-card .rc-label{font-size:10px;letter-spacing:2px;color:var(--dim);font-weight:600;margin:0 0 8px}
+.rev-card .rc-amount{font-family:'Playfair Display',Georgia,serif;font-size:32px;font-weight:900;margin:0}
+.rev-card .rc-sub{font-size:11px;color:var(--dim);margin:6px 0 0}
+.rev-card.projected .rc-amount{color:var(--gold)}
+.rev-card.deposits .rc-amount{color:#5dade2}
+.rev-card.collected .rc-amount{color:#27ae60}
+.rev-card.outstanding .rc-amount{color:#e67e22}
+.rev-breakdown{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.rev-breakdown h3{font-size:10px;letter-spacing:2px;color:var(--gold);font-weight:700;padding:16px 20px 10px;margin:0}
+.rev-row{display:flex;justify-content:space-between;align-items:center;padding:10px 20px;border-top:1px solid var(--border);font-size:13px}
+.rev-row .rr-label{color:var(--text)}
+.rev-row .rr-amt{font-weight:600;color:var(--text)}
+.rev-row .rr-status{margin-left:8px}
+@media(max-width:600px){.rev-cards{grid-template-columns:1fr}.rev-card .rc-amount{font-size:26px}}
 .share-btn{padding:5px 12px;background:transparent;border:1px solid #333;border-radius:6px;color:var(--dim);font-size:11px;cursor:pointer;font-family:inherit}
 .share-btn:hover{border-color:var(--gold-dim);color:var(--text)}
 .del-btn{padding:5px 12px;background:transparent;border:1px solid #333;border-radius:6px;color:#666;font-size:11px;cursor:pointer;font-family:inherit}
@@ -178,15 +200,19 @@ textarea{width:100%;background:var(--surface);border:1px solid #333;border-radiu
   <div class="dash-header">
     <div class="brand">
       <div><h1 style="font-family:'Playfair Display',Georgia,serif;font-weight:900;font-size:22px;color:#fff;margin:0">BENNY HANSON</h1><p style="margin:0;font-size:9px;letter-spacing:4px;color:var(--gold);font-weight:600">PRODUCTIONS</p></div>
-      <span style="font-size:10px;letter-spacing:3px;color:var(--gold-dim);font-weight:600">QUOTES</span>
     </div>
     <div class="dash-actions">
       <button class="dash-btn" onclick="newQuote()">+ New Quote</button>
       <button class="dash-btn secondary" onclick="doLogout()">Log Out</button>
     </div>
   </div>
+  <div class="dash-tabs">
+    <button class="dash-tab active" id="tabQuotes" onclick="switchTab('quotes')">Quotes</button>
+    <button class="dash-tab" id="tabRevenue" onclick="switchTab('revenue')">Revenue</button>
+  </div>
   <div style="max-width:900px;margin:0 auto;padding:24px">
     <div id="dashContent"></div>
+    <div id="revenueContent" class="hidden"></div>
   </div>
 </div>
 
@@ -836,6 +862,10 @@ async function showDashboard(){
   document.getElementById("dashView").classList.remove("hidden");
   document.body.style.background="#060606";
   window.scrollTo(0,0);
+  document.getElementById("tabQuotes").classList.add("active");
+  document.getElementById("tabRevenue").classList.remove("active");
+  document.getElementById("dashContent").classList.remove("hidden");
+  document.getElementById("revenueContent").classList.add("hidden");
   document.getElementById("dashContent").innerHTML='<p style="color:var(--dim);text-align:center;padding:40px">Loading quotes...</p>';
   var data=await sbSelect("quotes","select=id,quote_number,quote_date,client_name,project_name,total_amount,status,created_at&order=created_at.desc");
   if(data.error||data.message){document.getElementById("dashContent").innerHTML='<p style="color:#e74c3c">Error loading quotes: '+(data.message||data.error)+'</p>';return;}
@@ -859,6 +889,131 @@ async function showDashboard(){
   }
   h+='</tbody></table>';
   document.getElementById("dashContent").innerHTML=h;
+}
+
+// --- Tab Switching ---
+function switchTab(tab){
+  var tq=document.getElementById("tabQuotes"),tr=document.getElementById("tabRevenue");
+  var dc=document.getElementById("dashContent"),rc=document.getElementById("revenueContent");
+  if(tab==='revenue'){
+    tq.classList.remove("active");tr.classList.add("active");
+    dc.classList.add("hidden");rc.classList.remove("hidden");
+    showRevenue();
+  } else {
+    tr.classList.remove("active");tq.classList.add("active");
+    rc.classList.add("hidden");dc.classList.remove("hidden");
+  }
+}
+
+// --- Revenue Tracker ---
+var _revQuotes=null;
+async function showRevenue(){
+  var rc=document.getElementById("revenueContent");
+  rc.innerHTML='<p style="color:var(--dim);text-align:center;padding:40px">Loading revenue data...</p>';
+
+  var data=await sbSelect("quotes","select=id,quote_number,client_name,project_name,quote_data,fee_included,status,total_amount,created_at&order=created_at.desc");
+  if(data.error||data.message){rc.innerHTML='<p style="color:#e74c3c">Error: '+(data.message||data.error)+'</p>';return;}
+  _revQuotes=data||[];
+
+  renderRevenue('all');
+}
+
+function renderRevenue(filter){
+  var rc=document.getElementById("revenueContent");
+  var quotes=_revQuotes||[];
+
+  // Build filter options from quote dates
+  var months=new Set(),years=new Set();
+  quotes.forEach(function(q){
+    try{
+      var d=new Date(q.created_at);
+      years.add(d.getFullYear());
+      months.add(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+    }catch(e){}
+  });
+  var sortedYears=Array.from(years).sort(function(a,b){return b-a;});
+  var sortedMonths=Array.from(months).sort().reverse();
+
+  // Filter quotes
+  var filtered=quotes;
+  if(filter!=='all'){
+    filtered=quotes.filter(function(q){
+      try{
+        var d=new Date(q.created_at);
+        if(filter.length===4) return d.getFullYear()===parseInt(filter);
+        var parts=filter.split('-');
+        return d.getFullYear()===parseInt(parts[0])&&(d.getMonth()+1)===parseInt(parts[1]);
+      }catch(e){return false;}
+    });
+  }
+
+  // Calculate revenue
+  var projected=0,depositsCollected=0,revenueCollected=0;
+  var breakdown=[];
+
+  filtered.forEach(function(q){
+    var d=q.quote_data;if(!d)return;
+    var feeIncluded=q.fee_included!==false;
+    var total=feeIncluded?d.total:(d.total-(d.svcFee||0));
+    var deposit=d.deposit||0;
+    var balance=total-deposit;
+
+    if(q.status==='sent'||q.status==='deposit_paid'||q.status==='paid'){
+      projected+=total;
+    }
+    if(q.status==='deposit_paid'){
+      depositsCollected+=deposit;
+    }
+    if(q.status==='paid'){
+      depositsCollected+=deposit;
+      revenueCollected+=total;
+    }
+
+    breakdown.push({
+      number:q.quote_number,client:q.client_name,project:q.project_name,
+      total:total,deposit:deposit,balance:balance,status:q.status,date:q.created_at
+    });
+  });
+
+  var outstanding=projected-revenueCollected;
+
+  // Build filter dropdown
+  var filterHtml='<div class="rev-filter"><label style="font-size:10px;letter-spacing:2px;color:var(--dim);font-weight:600">PERIOD</label><select onchange="renderRevenue(this.value)">';
+  filterHtml+='<option value="all"'+(filter==='all'?' selected':'')+'>All Time</option>';
+  sortedYears.forEach(function(y){
+    filterHtml+='<option value="'+y+'"'+(filter==String(y)?' selected':'')+'>'+y+'</option>';
+  });
+  sortedMonths.forEach(function(m){
+    var parts=m.split('-');
+    var label=new Date(parseInt(parts[0]),parseInt(parts[1])-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    filterHtml+='<option value="'+m+'"'+(filter===m?' selected':'')+'>'+label+'</option>';
+  });
+  filterHtml+='</select></div>';
+
+  // Build stats cards
+  var cardsHtml='<div class="rev-cards">';
+  cardsHtml+='<div class="rev-card projected"><p class="rc-label">PROJECTED</p><p class="rc-amount">'+fmt(projected)+'</p><p class="rc-sub">Sent + deposit paid + paid quotes</p></div>';
+  cardsHtml+='<div class="rev-card deposits"><p class="rc-label">DEPOSITS COLLECTED</p><p class="rc-amount">'+fmt(depositsCollected)+'</p><p class="rc-sub">Deposits received to date</p></div>';
+  cardsHtml+='<div class="rev-card collected"><p class="rc-label">REVENUE COLLECTED</p><p class="rc-amount">'+fmt(revenueCollected)+'</p><p class="rc-sub">Fully paid quotes</p></div>';
+  cardsHtml+='<div class="rev-card outstanding"><p class="rc-label">OUTSTANDING</p><p class="rc-amount">'+fmt(outstanding)+'</p><p class="rc-sub">Projected minus collected</p></div>';
+  cardsHtml+='</div>';
+
+  // Build breakdown table
+  var bkHtml='<div class="rev-breakdown"><h3>QUOTE BREAKDOWN</h3>';
+  if(breakdown.length===0){
+    bkHtml+='<div class="rev-row"><span class="rr-label" style="color:var(--dim)">No quotes in this period</span></div>';
+  } else {
+    breakdown.forEach(function(b){
+      var statusLabel=b.status==='deposit_paid'?'deposit paid':b.status==='paid'?'paid in full':b.status;
+      bkHtml+='<div class="rev-row">';
+      bkHtml+='<span class="rr-label">'+esc(b.number||'')+' — '+esc(b.client||'')+' <span style="color:var(--dim);font-size:11px">('+esc(b.project||'')+')</span></span>';
+      bkHtml+='<span><span class="rr-amt">'+fmt(b.total)+'</span> <span class="rr-status status-badge '+b.status+'" style="font-size:10px;padding:2px 8px">'+statusLabel+'</span></span>';
+      bkHtml+='</div>';
+    });
+  }
+  bkHtml+='</div>';
+
+  rc.innerHTML=filterHtml+cardsHtml+bkHtml;
 }
 
 // --- New / Reset ---
