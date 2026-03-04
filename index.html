@@ -870,12 +870,12 @@ async function showDashboard(){
   document.getElementById("dashContent").classList.remove("hidden");
   document.getElementById("revenueContent").classList.add("hidden");
   document.getElementById("dashContent").innerHTML='<p style="color:var(--dim);text-align:center;padding:40px">Loading quotes...</p>';
-  var data=await sbSelect("quotes","select=id,quote_number,quote_date,client_name,project_name,total_amount,status,created_at,created_by&order=created_at.desc");
+  var data=await sbSelect("quotes","select=id,quote_number,quote_date,client_name,project_name,total_amount,status,created_at,created_by,fee_included&order=created_at.desc");
   if(data.error||data.message){document.getElementById("dashContent").innerHTML='<p style="color:#e74c3c">Error loading quotes: '+(data.message||data.error)+'</p>';return;}
   if(!data||data.length===0){
     document.getElementById("dashContent").innerHTML='<div class="dash-empty"><p>No quotes yet.</p><button class="dash-btn" onclick="newQuote()">Create Your First Quote</button></div>';return;
   }
-  var h='<table class="dash-table"><thead><tr><th>QUOTE #</th><th>CLIENT</th><th>PROJECT</th><th class="amt">TOTAL</th><th>STATUS</th><th>CREATED BY</th><th>DATE</th><th></th></tr></thead><tbody>';
+  var h='<table class="dash-table"><thead><tr><th>QUOTE #</th><th>CLIENT</th><th>PROJECT</th><th class="amt">TOTAL</th><th>STATUS</th><th>FEE</th><th>CREATED BY</th><th>DATE</th><th></th></tr></thead><tbody>';
   for(var i=0;i<data.length;i++){
     var q=data[i];
     var dt="";try{dt=new Date(q.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}catch(e){dt=q.quote_date;}
@@ -886,6 +886,8 @@ async function showDashboard(){
     h+='<td class="amt">'+fmt(q.total_amount)+'</td>';
     var statusLabel=statusText(q.status);
     h+='<td><span class="status-badge '+q.status+'">'+statusLabel+'</span></td>';
+    var feeOn=q.fee_included!==false;
+    h+='<td onclick="event.stopPropagation()"><label style="cursor:pointer;font-size:11px;color:var(--dim)"><input type="checkbox" '+(feeOn?'checked':'')+' onchange="toggleQuoteFee(\''+q.id+'\',this.checked)" style="accent-color:#d4a438;vertical-align:-1px;cursor:pointer"> '+(feeOn?'Included':'Removed')+'</label></td>';
     var cb=q.created_by||'';var cbShort=cb.split('@')[0]||cb;
     h+='<td style="color:var(--dim);font-size:11px" title="'+esc(cb)+'">'+esc(cbShort)+'</td>';
     h+='<td style="color:var(--dim)">'+dt+'</td>';
@@ -1118,6 +1120,13 @@ async function copyShareLink(id){
       sbUpdate("quotes",qid,{status:"sent",updated_at:new Date().toISOString()});
     }
   });
+}
+
+// --- Toggle Fee ---
+async function toggleQuoteFee(id,on){
+  await sbUpdate("quotes",id,{fee_included:on,updated_at:new Date().toISOString()});
+  showToast(on?'Processing fee included':'Processing fee removed');
+  showDashboard();
 }
 
 // --- Delete ---
