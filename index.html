@@ -119,8 +119,8 @@ input[type=number]::-webkit-inner-spin-button{opacity:1}
 .status-badge{font-size:9px;padding:3px 10px;border-radius:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
 .status-badge.draft{background:rgba(119,119,119,0.15);color:#999}
 .status-badge.sent{background:rgba(212,164,56,0.15);color:var(--gold)}
-.status-badge.deposit_paid{background:rgba(52,152,219,0.15);color:#3498db}
-.status-badge.paid{background:rgba(46,204,113,0.15);color:#2ecc71}
+.status-badge.deposit_paid{background:rgba(46,204,113,0.12);color:#5dbb6b}
+.status-badge.paid{background:rgba(39,174,96,0.2);color:#27ae60}
 .dash-empty{text-align:center;padding:60px 24px;color:var(--dim)}
 .dash-empty p{margin-bottom:20px;font-size:14px}
 .share-btn{padding:5px 12px;background:transparent;border:1px solid #333;border-radius:6px;color:var(--dim);font-size:11px;cursor:pointer;font-family:inherit}
@@ -851,7 +851,8 @@ async function showDashboard(){
     h+='<td>'+esc(q.client_name||"-")+'</td>';
     h+='<td>'+esc(q.project_name||"-")+'</td>';
     h+='<td class="amt">'+fmt(q.total_amount)+'</td>';
-    h+='<td><span class="status-badge '+q.status+'">'+q.status+'</span></td>';
+    var statusLabel=q.status==='deposit_paid'?'deposit paid':q.status==='paid'?'paid in full':q.status;
+    h+='<td><span class="status-badge '+q.status+'">'+statusLabel+'</span></td>';
     h+='<td style="color:var(--dim)">'+dt+'</td>';
     h+='<td><button class="share-btn" onclick="event.stopPropagation();copyShareLink(\''+q.id+'\')">Share</button> <button class="del-btn" onclick="event.stopPropagation();deleteQuote(\''+q.id+'\')">Delete</button></td>';
     h+='</tr>';
