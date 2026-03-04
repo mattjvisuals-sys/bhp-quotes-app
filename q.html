@@ -214,59 +214,56 @@ async function handlePay(type){
 }
 
 function initPayPalButtons(quoteId,types){
-  // Load PayPal SDK dynamically
-  fetch('/api/paypal-create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({quoteId:quoteId,paymentType:'deposit'})})
-    .then(function(){})
-    .catch(function(){});
-  // We load the SDK using a meta endpoint — for now, use env-injected client ID from the page
-  types.forEach(function(type){
-    var containerId='paypal-btn-'+type;
-    var container=document.getElementById(containerId);
-    if(!container||!window.paypal)return;
-    paypal.Buttons({
-      style:{layout:'horizontal',color:'gold',shape:'rect',label:'paypal',height:45},
-      createOrder:function(){
-        return fetch('/api/paypal-create',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({quoteId:quoteId,paymentType:type})
-        }).then(function(r){return r.json();}).then(function(data){
-          if(data.error)throw new Error(data.error);
-          return data.orderId;
-        });
-      },
-      onApprove:function(data){
-        return fetch('/api/paypal-capture',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({orderId:data.orderID,quoteId:quoteId,paymentType:type})
-        }).then(function(r){return r.json();}).then(function(result){
-          if(result.ok){
-            var msg=document.getElementById('payMsg');
-            msg.className='pay-msg success';
-            msg.textContent=type==='deposit'?'Deposit payment received via PayPal! Thank you.':'Payment received in full via PayPal! Thank you.';
-            if(type==='deposit'&&document.getElementById('payDepositBtn'))document.getElementById('payDepositBtn').style.display='none';
-            if(type==='balance'&&document.getElementById('payBalanceBtn'))document.getElementById('payBalanceBtn').style.display='none';
-            container.style.display='none';
-            var otherContainer=document.getElementById('paypal-btn-'+(type==='deposit'?'deposit':'balance'));
-            if(type==='deposit'&&otherContainer)otherContainer.style.display='none';
-          }else{
-            throw new Error(result.error||'Payment failed');
-          }
-        });
-      },
-      onError:function(err){
-        var msg=document.getElementById('payMsg');
-        msg.className='pay-msg cancelled';
-        msg.textContent=err.message||'PayPal payment failed. Please try again.';
-      },
-      onCancel:function(){
-        var msg=document.getElementById('payMsg');
-        msg.className='pay-msg cancelled';
-        msg.textContent='PayPal payment was cancelled. You can try again when ready.';
-      }
-    }).render('#'+containerId);
-  });
+  var container=document.getElementById('paypal-btn');
+  if(!container||!window.paypal)return;
+  var defaultType=types[0];
+  paypal.Buttons({
+    style:{layout:'vertical',color:'gold',shape:'rect',label:'paypal',height:45},
+    createOrder:function(){
+      var sel=document.getElementById('ppPayType');
+      var type=sel?sel.value:defaultType;
+      return fetch('/api/paypal-create',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({quoteId:quoteId,paymentType:type})
+      }).then(function(r){return r.json();}).then(function(data){
+        if(data.error)throw new Error(data.error);
+        return data.orderId;
+      });
+    },
+    onApprove:function(data){
+      var sel=document.getElementById('ppPayType');
+      var type=sel?sel.value:defaultType;
+      return fetch('/api/paypal-capture',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({orderId:data.orderID,quoteId:quoteId,paymentType:type})
+      }).then(function(r){return r.json();}).then(function(result){
+        if(result.ok){
+          var msg=document.getElementById('payMsg');
+          msg.className='pay-msg success';
+          msg.textContent=type==='deposit'?'Deposit payment received via PayPal! Thank you.':'Payment received in full via PayPal! Thank you.';
+          if(type==='deposit'&&document.getElementById('payDepositBtn'))document.getElementById('payDepositBtn').style.display='none';
+          if(type==='balance'&&document.getElementById('payBalanceBtn'))document.getElementById('payBalanceBtn').style.display='none';
+          container.style.display='none';
+          if(sel)sel.style.display='none';
+          document.querySelector('.pay-divider').style.display='none';
+        }else{
+          throw new Error(result.error||'Payment failed');
+        }
+      });
+    },
+    onError:function(err){
+      var msg=document.getElementById('payMsg');
+      msg.className='pay-msg cancelled';
+      msg.textContent='PayPal payment failed. Please try again.';
+    },
+    onCancel:function(){
+      var msg=document.getElementById('payMsg');
+      msg.className='pay-msg cancelled';
+      msg.textContent='PayPal payment was cancelled. You can try again when ready.';
+    }
+  }).render('#paypal-btn');
 }
 
 (async function(){
@@ -308,24 +305,25 @@ function initPayPalButtons(quoteId,types){
     if(data.status==='deposit_paid'){
       statusMsg='<div class="pay-msg success" style="display:block;margin-bottom:16px">Deposit of '+fmt(dep)+' received. Thank you!</div>';
     }
-    var ppBtns='';
     var ppTypes=[];
     if(data.status!=='deposit_paid'){
       btns+='<button class="pay-btn deposit" onclick="handlePay(\'deposit\')" id="payDepositBtn">Pay Deposit \u2014 '+fmt(dep)+'</button>';
-      ppBtns+='<div id="paypal-btn-deposit" class="paypal-container"></div>';
       ppTypes.push('deposit');
     }
     btns+='<button class="pay-btn balance" onclick="handlePay(\'balance\')" id="payBalanceBtn">Pay Balance \u2014 '+fmt(bal)+'</button>';
-    ppBtns+='<div id="paypal-btn-balance" class="paypal-container"></div>';
     ppTypes.push('balance');
-    ps.innerHTML='<div class="pay-section"><h3>Make a Payment</h3><p>Secure payment via card or PayPal</p>'+statusMsg+'<div class="pay-buttons">'+btns+'</div><div class="pay-divider">OR PAY WITH PAYPAL</div><div class="pay-buttons" style="flex-direction:column;max-width:400px;margin:0 auto">'+ppBtns+'</div><div id="payMsg" class="pay-msg"></div></div>';
+    var ppSelect='';
+    if(ppTypes.length>1){
+      ppSelect='<select id="ppPayType" style="margin-bottom:12px;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit"><option value="deposit">Deposit — '+fmt(dep)+'</option><option value="balance">Balance — '+fmt(bal)+'</option></select>';
+    }
+    ps.innerHTML='<div class="pay-section"><h3>Make a Payment</h3><p>Secure payment via card or PayPal</p>'+statusMsg+'<div class="pay-buttons">'+btns+'</div><div class="pay-divider">OR PAY WITH PAYPAL</div>'+ppSelect+'<div id="paypal-btn" class="paypal-container" style="max-width:400px;margin:0 auto"></div><div id="payMsg" class="pay-msg"></div></div>';
     ps.style.display='block';
 
     // Load PayPal SDK
     fetch('/api/paypal-client-id').then(function(r){return r.json();}).then(function(cfg){
       if(!cfg.clientId)return;
       var ppScript=document.createElement('script');
-      ppScript.src='https://www.paypal.com/sdk/js?client-id='+encodeURIComponent(cfg.clientId)+'&currency=USD';
+      ppScript.src='https://www.paypal.com/sdk/js?client-id='+encodeURIComponent(cfg.clientId)+'&currency=USD&disable-funding=paylater,credit';
       ppScript.onload=function(){initPayPalButtons(id,ppTypes);};
       document.head.appendChild(ppScript);
     }).catch(function(){});
